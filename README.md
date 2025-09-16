@@ -41,7 +41,7 @@ Transform your file management workflow with seamless compression and extraction
 ### Using Yazi Package Manager (Recommended)
 
 ```bash
-ya pack add maximtrp/archives
+ya pkg add maximtrp/archives
 ```
 
 ### Manual Installation
