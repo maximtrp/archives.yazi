@@ -4,14 +4,14 @@
 
 Transform your file management workflow with seamless compression and extraction capabilities, just like the beloved ranger-archives but designed specifically for Yazi's modern architecture.
 
-## ✨ Key Features
+## Features
 
-🚀 **Lightning Fast** - Intelligent parallel compression tool detection (pigz, pbzip2, pixz) for maximum performance
-🌍 **Universal Compatibility** - Works flawlessly across Linux, macOS, and Windows
-📋 **Extensive Format Support** - 20+ archive formats including tar.gz, tar.bz2, tar.xz, zip, 7z, rar, and more
-🧠 **Smart Tool Selection** - Automatically detects and prioritizes the best available compression tools
-🔄 **Graceful Fallbacks** - Always finds an alternative when your preferred tool isn't available
-⚡ **Minimal Configuration** - Works out of the box with intelligent defaults
+* 🚀 **Lightning Fast** - Intelligent parallel compression tool detection (pigz, pbzip2, pixz) for maximum performance
+* 🌍 **Universal Compatibility** - Works flawlessly across Linux, macOS, and Windows
+* 📋 **Extensive Format Support** - 20+ archive formats including tar.gz, tar.bz2, tar.xz, zip, 7z, rar, and more
+* 🧠 **Smart Tool Selection** - Automatically detects and prioritizes the best available compression tools
+* 🔄 **Graceful Fallbacks** - Always finds an alternative when your preferred tool isn't available
+* ⚡ **Minimal Configuration** - Works out of the box with intelligent defaults
 
 ## Supported Formats
 
@@ -70,7 +70,7 @@ mkdir %AppData%\yazi\config\plugins
 xcopy archives.yazi %AppData%\yazi\config\plugins\archives.yazi /E
 ```
 
-## 🎯 Quick Setup
+## Quick Setup
 
 Add these keybindings to your `~/.config/yazi/keymap.toml`:
 
@@ -84,16 +84,16 @@ prepend_keymap = [
 
 That's it! You're ready to go! 🎉
 
-## 📖 Usage Guide
+## Usage Guide
 
-### ⚡ Interactive Compression
+### Interactive Compression
 
 1. Select files/folders in Yazi
 2. Press `c` + `z`
 3. Enter archive name (e.g., `backup.tar.gz`, `files.zip`)
 4. Watch the magic happen! ✨
 
-### 🔧 Command Line Usage
+### Command Line Usage
 
 #### Compress Files
 
@@ -120,22 +120,22 @@ That's it! You're ready to go! 🎉
 :plugin archives -- extract -v
 ```
 
-### 🎨 Supported Workflows
+### Supported Workflows
 
 - **Backup Creation**: Select multiple folders → `c+z` → `backup-$(date).tar.gz`
 - **Project Archiving**: Select source code → `c+z` → `project-v1.0.zip`
 - **Quick Extraction**: Navigate to archive → `c+x` → Done!
 - **Batch Processing**: Works with multiple selected archives
 
-## 🔧 Tool Requirements
+## Tool Requirements
 
 The plugin works with whatever you have installed! It intelligently detects and prioritizes the best available tools:
 
-### 📦 Basic Tools (Usually Pre-installed)
+### Basic Tools (Usually Pre-installed)
 
 - `tar`, `zip`, `unzip`, `gzip`, `bzip2`, `xz`
 
-### ⚡ Performance Tools (Recommended)
+### Performance Tools (Recommended)
 
 ```bash
 # Ubuntu/Debian
@@ -151,7 +151,7 @@ sudo pacman -S pigz pbzip2 lbzip2 pixz lz4 zstd p7zip
 sudo dnf install pigz pbzip2 lbzip2 pixz lz4 zstd p7zip
 ```
 
-### 🎯 Specialized Tools (Optional)
+### Specialized Tools (Optional)
 
 - `rar`, `unrar` - For RAR archives
 - `zpaq` - For ZPAQ archives
