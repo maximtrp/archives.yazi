@@ -3,222 +3,294 @@
 
 local unpack = table.unpack or unpack
 
--- Archive format configurations
-local ARCHIVE_FORMATS = {
+-- Unified format configurations
+local FORMATS = {
 	-- TAR-based compressed formats
 	tar_bz2 = {
 		patterns = { "%.tar%.bz2$", "%.tbz2?$" },
-		compression_tools = { "pbzip2", "lbzip2", "bzip2" },
-		tar_flag = "-cjf",
-		requires_tar = true,
+		compression = {
+			{ tools = { "pbzip2", "lbzip2", "bzip2" }, flags = { "-cjf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
+	},
+	tar_bz3 = {
+		patterns = { "%.tar%.bz3$", "%.tbz3$" },
+		special_extraction = "pipe",
+		compression = {
+			{ tools = { "bzip3" }, flags = { "-cf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
 	tar_gz = {
 		patterns = { "%.tar%.gz$", "%.tgz$", "%.taz$" },
-		compression_tools = { "pigz", "gzip" },
-		tar_flag = "-czf",
-		requires_tar = true,
+		compression = {
+			{ tools = { "pigz", "gzip" }, flags = { "-czf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
 	tar_xz = {
 		patterns = { "%.tar%.xz$", "%.txz$", "%.tlz$" },
-		compression_tools = { "pixz", "xz" },
-		tar_flag = "-cJf",
-		requires_tar = true,
+		compression = {
+			{ tools = { "pixz", "xz" }, flags = { "-cJf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
 	tar_lz4 = {
 		patterns = { "%.tar%.lz4$" },
-		compression_tools = { "lz4" },
-		requires_tar = true,
+		compression = {
+			{ tools = { "lz4" }, flags = { "-cf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
 	tar_lrz = {
 		patterns = { "%.tar%.lrz$" },
-		compression_tools = { "lrzip" },
-		requires_tar = true,
+		compression = {
+			{ tools = { "lrzip" }, flags = { "-cf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
-	tar_lz = {
+	tar_lzip = {
 		patterns = { "%.tar%.lz$" },
-		compression_tools = { "plzip", "lzip" },
-		requires_tar = true,
+		compression = {
+			{ tools = { "plzip", "lzip" }, flags = { "-cf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
 	tar_lzop = {
 		patterns = { "%.tar%.lzop$", "%.tzo$" },
-		compression_tools = { "lzop" },
-		requires_tar = true,
+		compression = {
+			{ tools = { "lzop" }, flags = { "-cf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
 	tar_zst = {
 		patterns = { "%.tar%.zst$" },
-		compression_tools = { "zstd" },
-		tar_flag = "--zstd",
-		fallback_flag = "-cf",
-		requires_tar = true,
+		compression = {
+			{ tools = { "zstd" }, flags = { "-cf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
 	tar = {
 		patterns = { "%.tar$" },
-		tar_flag = "-cf",
-		fallback_tools = { "7z" },
-		requires_tar = true,
+		fallback = "seven_zip",
+		compression = {
+			{ tools = { "tar" }, flags = { "-cf" } },
+		},
+		extraction = {
+			{ tools = { "tar" }, flags = { "-xf" } },
+		},
 	},
 
 	-- Single-file compression formats
 	bz2 = {
 		patterns = { "%.bz2$" },
-		compression_tools = { "pbzip2", "lbzip2", "bzip2" },
 		single_file = true,
+		check_tar = true,
+		compression = {
+			{ tools = { "pbzip2", "lbzip2", "bzip2" }, flags = { "-c" } },
+		},
+		extraction = {
+			{ tools = { "pbzip2", "lbzip2", "bzip2" }, flags = { "-dk" } },
+		},
+	},
+	bz3 = {
+		patterns = { "%.bz3$" },
+		single_file = true,
+		check_tar = true,
+		compression = {
+			{ tools = { "bzip3" }, flags = { "-c" } },
+		},
+		extraction = {
+			{ tools = { "bzip3" }, flags = { "-dk" } },
+		},
 	},
 	gz = {
 		patterns = { "%.gz$" },
-		compression_tools = { "pigz", "gzip" },
 		single_file = true,
+		check_tar = true,
+		compression = {
+			{ tools = { "pigz", "gzip" }, flags = { "-c" } },
+		},
+		extraction = {
+			{ tools = { "pigz", "gzip" }, flags = { "-dk" } },
+		},
 	},
 	xz = {
 		patterns = { "%.xz$", "%.lzma$" },
-		compression_tools = { "pixz", "xz" },
 		single_file = true,
+		check_tar = true,
+		compression = {
+			{ tools = { "pixz", "xz" }, flags = { "-c" } },
+		},
+		extraction = {
+			{ tools = { "pixz", "xz" }, flags = { "-dk" } },
+		},
 	},
-	lz = {
+	lzip = {
 		patterns = { "%.lz$" },
-		compression_tools = { "plzip", "lzip" },
 		single_file = true,
+		check_tar = true,
+		compression = {
+			{ tools = { "plzip", "lzip" }, flags = { "-c" } },
+		},
+		extraction = {
+			{ tools = { "plzip", "lzip" }, flags = { "-dk" } },
+		},
+	},
+	lz4 = {
+		patterns = { "%.lz4$" },
+		single_file = true,
+		check_tar = true,
+		compression = {
+			{ tools = { "lz4" }, flags = { "-c" } },
+		},
+		extraction = {
+			{ tools = { "lz4" }, flags = { "-dk" } },
+		},
 	},
 	lzop = {
 		patterns = { "%.lzop$" },
-		compression_tools = { "lzop" },
-		special_handling = "convert_to_tar",
-	},
-
-	-- Archive formats
-	seven_zip = {
-		patterns = { "%.7z$" },
-		tools = { "7z", "7za" },
-		compress_args = { "a", "-r" },
-	},
-	rar = {
-		patterns = { "%.rar$" },
-		tools = { "rar" },
-		compress_args = { "a", "-r" },
-	},
-	zip = {
-		patterns = { "%.zip$" },
-		tools = { "zip" },
-		compress_args = { "-r" },
-		fallback_tools = { "7z", "7za" },
-	},
-	zpaq = {
-		patterns = { "%.zpaq$" },
-		tools = { "zpaq" },
-		compress_args = { "a" },
-	},
-}
-
-local EXTRACTION_FORMATS = {
-	-- TAR formats (including compressed)
-	tar_compressed = {
-		patterns = {
-			"%.tar%.bz2$",
-			"%.tar%.gz$",
-			"%.tar%.lz4$",
-			"%.tar%.lzma$",
-			"%.tar%.lrz$",
-			"%.tar%.lzop$",
-			"%.tar%.xz$",
-			"%.tar%.zst$",
-			"%.tbz2?$",
-			"%.tgz$",
-			"%.txz$",
-			"%.tlz$",
-			"%.tzo$",
-		},
-		command = "tar",
-		args = { "-xf" },
-		output_flag = "-C",
-	},
-	tar = {
-		patterns = { "%.tar$" },
-		command = "tar",
-		args = { "-xf" },
-		output_flag = "-C",
-		fallback = { tool = "7z", args = { "x" }, output_flag = "-o" },
-	},
-
-	-- Single-file compression that might be tar
-	ambiguous_compressed = {
-		patterns = { "%.gz$", "%.bz2$", "%.xz$", "%.lz$", "%.lzop$" },
+		single_file = true,
 		check_tar = true,
-		single_file_tools = {
-			["%.gz$"] = { "gzip", "pigz" },
-			["%.bz2$"] = { "bzip2", "pbzip2", "lbzip2" },
-			["%.xz$"] = { "xz", "pixz" },
-			["%.lz$"] = { "lzip", "plzip" },
-			["%.lzop$"] = { "lzop" },
+		compression = {
+			{ tools = { "lzop" }, flags = { "-c" } },
+		},
+		extraction = {
+			{ tools = { "lzop" }, flags = { "-dk" } },
+		},
+	},
+	lrzip = {
+		patterns = { "%.lrz$" },
+		single_file = true,
+		check_tar = true,
+		compression = {
+			{ tools = { "lrzip" }, flags = { "-o -" } },
+		},
+		extraction = {
+			{ tools = { "lrzip" }, flags = { "-d" } },
 		},
 	},
 
 	-- Standard archive formats
 	seven_zip = {
 		patterns = { "%.7z$" },
-		command = "7z",
-		args = { "x" },
-		output_flag = "-o",
-		fallback = { tool = "7za", args = { "x" }, output_flag = "-o" },
+		fallback = "zip",
+		compression = {
+			{ tools = { "7z" }, flags = { "a" } },
+		},
+		extraction = {
+			{ tools = { "7z" }, flags = { "x" }, output_flag = "-o" },
+		},
 	},
 	rar = {
 		patterns = { "%.rar$" },
-		tools = { "rar", "unrar" },
-		args = { "x" },
-		output_flag = "",
-		fallback = { tool = "7z", args = { "x" }, output_flag = "-o" },
+		fallback = "seven_zip",
+		compression = {
+			{ tools = { "rar" }, flags = { "a", "-r" } },
+		},
+		extraction = {
+			{ tools = { "rar", "unrar" }, flags = { "x" } },
+		},
 	},
 	zip = {
 		patterns = { "%.zip$" },
-		command = "7z",
-		args = { "x" },
-		output_flag = "-o",
-		fallback = { tool = "unzip", args = {}, output_flag = "-d" },
+		compression = {
+			{ tools = { "zip" }, flags = { "-r" } },
+			{ tools = { "7z" }, flags = { "a -tzip" } },
+		},
+		extraction = {
+			{ tools = { "unzip" }, flags = {}, output_flag = "-d" },
+			{ tools = { "7z" }, flags = { "x" }, output_flag = "-o" },
+		},
 	},
 	zpaq = {
 		patterns = { "%.zpaq$" },
-		command = "zpaq",
-		args = { "x" },
-		output_flag = "-to",
+		compression = {
+			{ tools = { "zpaq" }, flags = { "a" } },
+		},
+		extraction = {
+			{ tools = { "zpaq" }, flags = { "x" }, output_flag = "-to" },
+		},
 	},
 	deb = {
 		patterns = { "%.deb$" },
-		command = "ar",
-		args = { "xv" },
-		output_flag = "--output=",
+		extraction = {
+			{ tools = { "ar" }, flags = { "xv" }, output_flag = "--output=" },
+		},
 	},
 }
 
 -- Utility functions
 local function is_command_available(cmd)
 	if not cmd or cmd == "" then
+		ya.dbg("is_command_available: empty command")
 		return false
 	end
 
 	local output = Command("which"):arg(cmd):output()
-	return output and output.status.success
+	local available = output and output.status.success
+	ya.dbg("is_command_available: " .. cmd .. " = " .. tostring(available))
+	return available
 end
 
 local function find_available_tool(tools)
 	if not tools then
+		ya.dbg("find_available_tool: no tools provided")
 		return nil
 	end
-
+	ya.dbg("find_available_tool: checking tools: " .. table.concat(tools, ", "))
 	for _, tool in ipairs(tools) do
 		if is_command_available(tool) then
+			ya.dbg("find_available_tool: found " .. tool)
 			return tool
 		end
 	end
+	ya.dbg("find_available_tool: no tools available")
 	return nil
 end
 
-local function get_file_extension(filename)
-	return filename:lower()
+local function find_available_tool_group(tool_groups)
+	if not tool_groups then
+		ya.dbg("find_available_tool_group: no tool groups provided")
+		return nil, nil
+	end
+
+	for _, group in ipairs(tool_groups) do
+		local tool = find_available_tool(group.tools)
+		if tool then
+			ya.dbg("find_available_tool_group: found tool " .. tool .. " with flags")
+			return tool, group.flags, group.output_flag
+		end
+	end
+	ya.dbg("find_available_tool_group: no tool groups available")
+	return nil, nil, nil
+end
+
+local function is_tar_format(format_name)
+	return format_name and format_name:match("^tar_") or format_name == "tar"
 end
 
 local function match_format_patterns(filename, patterns)
-	local ext = get_file_extension(filename)
 	for _, pattern in ipairs(patterns) do
-		if ext:match(pattern) then
+		if filename:lower():match(pattern) then
 			return true
 		end
 	end
@@ -226,11 +298,14 @@ local function match_format_patterns(filename, patterns)
 end
 
 local function find_archive_format(filename, format_table)
+	ya.dbg("find_archive_format: checking " .. filename)
 	for format_name, config in pairs(format_table) do
 		if match_format_patterns(filename, config.patterns) then
+			ya.dbg("find_archive_format: matched " .. format_name)
 			return format_name, config
 		end
 	end
+	ya.dbg("find_archive_format: no format matched")
 	return nil, nil
 end
 
@@ -265,118 +340,133 @@ local get_current_directory = ya.sync(function()
 end)
 
 -- Command builders
-local function build_tar_command_with_compression(archive_name, files, compression_tool)
+local function build_tar_command_with_compression(compression_tool, flags, archive_name, files)
 	if not is_command_available("tar") then
 		return nil
 	end
-
-	return { "tar", "-cf", archive_name, "--use-compress-program", compression_tool, unpack(files) }
+	return { "tar", flags, archive_name, "--use-compress-program", compression_tool, unpack(files) }
 end
 
-local function build_single_file_compression_command(archive_name, files, compression_tool)
+local function build_single_file_compression_command(compression_tool, flags, archive_name, files)
 	if #files == 1 then
-		return { compression_tool, "-c", files[1] }
+		ya.dbg("build_single_file_compression_command: single file, using original flags")
+		local flags_str = table.concat(flags or {}, " ")
+		return {
+			"sh",
+			"-c",
+			compression_tool .. " " .. flags_str .. " '" .. files[1] .. "' > '" .. archive_name .. "'",
+		}
 	end
 
 	-- Convert to tar format for multiple files
-	local tar_name = archive_name
-	local ext = get_file_extension(archive_name)
+	ya.dbg("build_single_file_compression_command: multiple files, converting to tar format")
+	for _, format_config in pairs(FORMATS) do
+		if format_config.single_file then
+			for _, pattern in ipairs(format_config.patterns) do
+				if archive_name:lower():match(pattern) then
+					local clean_pattern = pattern:gsub("^%%", ""):gsub("%$$", "")
+					local tar_name = archive_name:gsub(clean_pattern, ".tar" .. clean_pattern)
+					ya.dbg("build_single_file_compression_command: converted " .. archive_name .. " to " .. tar_name)
 
-	if ext:match("%.gz$") then
-		tar_name = archive_name:gsub("%.gz$", ".tar.gz")
-	elseif ext:match("%.bz2$") then
-		tar_name = archive_name:gsub("%.bz2$", ".tar.bz2")
-	elseif ext:match("%.xz$") then
-		tar_name = archive_name:gsub("%.xz$", ".tar.xz")
-	elseif ext:match("%.lz$") then
-		tar_name = archive_name:gsub("%.lz$", ".tar.lz")
-	else
-		tar_name = archive_name .. ".tar"
+					-- Find the corresponding tar format and use its flags
+					local tar_format_name, tar_format_config = find_archive_format(tar_name, FORMATS)
+					if tar_format_config and is_tar_format(tar_format_name) then
+						local tar_tool, tar_flags = find_available_tool_group(tar_format_config.compression)
+						if tar_flags then
+							ya.dbg(
+								"build_single_file_compression_command: found tar format "
+									.. tar_format_name
+									.. " with flags "
+									.. table.concat(tar_flags, " ")
+							)
+							return build_tar_command_with_compression(tar_tool, tar_flags, tar_name, files)
+						end
+					end
+					ya.dbg("build_single_file_compression_command: no tar format found, using fallback")
+					return build_tar_command_with_compression(compression_tool, { "-cf" }, tar_name, files)
+				end
+			end
+		end
 	end
-
-	return build_tar_command_with_compression(tar_name, files, compression_tool)
+	ya.dbg("build_single_file_compression_command: no pattern matched, using fallback .tar")
+	return build_tar_command_with_compression(compression_tool, { "-cf" }, archive_name .. ".tar", files)
 end
 
 local function build_compression_command(archive_name, files)
-	local format_name, format_config = find_archive_format(archive_name, ARCHIVE_FORMATS)
-
+	ya.dbg("build_compression_command: " .. archive_name .. " with " .. #files .. " files")
+	local format_name, format_config = find_archive_format(archive_name, FORMATS)
 	if not format_config then
+		ya.dbg("build_compression_command: no format config found")
 		return nil
 	end
 
-	-- Handle special cases
-	if format_config.special_handling == "convert_to_tar" then
-		local tar_name = archive_name:gsub("%.lzop$", ".tar.lzop")
-		local tool = find_available_tool(format_config.compression_tools)
-		if tool then
-			return build_tar_command_with_compression(tar_name, files, tool)
+	ya.dbg("build_compression_command: using format " .. (format_name or "unknown"))
+
+	-- Try to find available compression tools
+	local tool, flags, _ = find_available_tool_group(format_config.compression)
+	if not tool then
+		-- Try fallback format if available
+		if format_config.fallback and FORMATS[format_config.fallback] then
+			ya.dbg("build_compression_command: trying fallback format " .. format_config.fallback)
+			local fallback_config = FORMATS[format_config.fallback]
+			local fallback_tool, fallback_flags = find_available_tool_group(fallback_config.compression)
+			if fallback_tool then
+				-- Use fallback format logic
+				local cmd = { fallback_tool }
+				for _, arg in ipairs(fallback_flags or {}) do
+					table.insert(cmd, arg)
+				end
+				table.insert(cmd, archive_name)
+				for _, file in ipairs(files) do
+					table.insert(cmd, file)
+				end
+				return cmd
+			end
 		end
+		ya.dbg("build_compression_command: no compression tools available")
 		return nil
 	end
 
 	-- Single-file compression
 	if format_config.single_file then
-		local tool = find_available_tool(format_config.compression_tools)
-		if tool then
-			return build_single_file_compression_command(archive_name, files, tool)
-		end
-		return nil
+		ya.dbg("build_compression_command: single-file compression")
+		return build_single_file_compression_command(tool, flags, archive_name, files)
 	end
 
 	-- TAR-based compression
-	if format_config.requires_tar then
-		local compression_tool = find_available_tool(format_config.compression_tools)
-		if compression_tool and is_command_available("tar") then
-			return build_tar_command_with_compression(archive_name, files, compression_tool)
-		elseif is_command_available("tar") and format_config.tar_flag then
-			local flag = format_config.tar_flag
-			if flag == "--zstd" and format_config.fallback_flag then
-				return { "tar", flag, format_config.fallback_flag, archive_name, unpack(files) }
-			else
-				return { "tar", flag, archive_name, unpack(files) }
-			end
+	if is_tar_format(format_name) then
+		ya.dbg("build_compression_command: tar-based compression")
+		if is_command_available("tar") then
+			return build_tar_command_with_compression(tool, flags, archive_name, files)
 		end
+		ya.dbg("build_compression_command: tar not available")
 		return nil
 	end
 
 	-- Standard archive formats
-	local tool = find_available_tool(format_config.tools)
-	if tool and format_config.compress_args then
-		local cmd = { tool }
-		for _, arg in ipairs(format_config.compress_args) do
-			table.insert(cmd, arg)
-		end
-		table.insert(cmd, archive_name)
-		for _, file in ipairs(files) do
-			table.insert(cmd, file)
-		end
-		return cmd
+	ya.dbg("build_compression_command: standard archive format")
+	local cmd = { tool }
+	for _, arg in ipairs(flags or {}) do
+		table.insert(cmd, arg)
 	end
-
-	-- Try fallback tools
-	if format_config.fallback_tools then
-		local fallback_tool = find_available_tool(format_config.fallback_tools)
-		if fallback_tool then
-			return { fallback_tool, "a", archive_name, unpack(files) }
-		end
+	table.insert(cmd, archive_name)
+	for _, file in ipairs(files) do
+		table.insert(cmd, file)
 	end
-
-	return nil
+	ya.dbg("build_compression_command: built command: " .. table.concat(cmd, " "))
+	return cmd
 end
 
 local function get_fallback_compression_command(archive_name, files)
-	local fallback_commands = {
-		{ tool = "zip", args = { "-r", archive_name .. ".zip" } },
-		{ tool = "7z", args = { "a", archive_name .. ".zip" } },
-		{ tool = "7za", args = { "a", archive_name .. ".zip" } },
-	}
-
-	for _, fallback in ipairs(fallback_commands) do
-		if is_command_available(fallback.tool) then
-			local cmd = { fallback.tool }
-			for _, arg in ipairs(fallback.args) do
+	local zip_config = FORMATS.zip
+	if zip_config and zip_config.compression then
+		local tool, flags = find_available_tool_group(zip_config.compression)
+		if tool then
+			local cmd = { tool }
+			for _, arg in ipairs(flags or {}) do
 				table.insert(cmd, arg)
 			end
+			table.insert(cmd, archive_name .. ".zip")
 			for _, file in ipairs(files) do
 				table.insert(cmd, file)
 			end
@@ -392,50 +482,38 @@ local function is_compressed_tar_archive(file_path)
 	return file_path:lower():match("%.tar%.")
 end
 
-local function build_single_file_decompression_command(archive_path)
-	local _, format_config = find_archive_format(archive_path, EXTRACTION_FORMATS.ambiguous_compressed)
-	if not format_config then
+local function build_extraction_command(archive_path, output_dir)
+	ya.dbg("build_extraction_command: " .. archive_path .. (output_dir and (" to " .. output_dir) or ""))
+	local format_name, format_config = find_archive_format(archive_path, FORMATS)
+
+	-- Special handling for formats that need piped extraction
+	if format_config and format_config.special_extraction == "pipe" then
+		ya.dbg("build_extraction_command: detected special pipe extraction for " .. (format_name or "unknown"))
+		local compression_tool, compression_flags = find_available_tool_group(format_config.compression)
+		if compression_tool and is_command_available("tar") then
+			local cmd = { "sh", "-c" }
+			local pipe_cmd = compression_tool .. " -dc '" .. archive_path .. "' | tar -xf -"
+			if output_dir then
+				pipe_cmd = pipe_cmd .. " -C '" .. output_dir .. "'"
+			end
+			table.insert(cmd, pipe_cmd)
+			ya.dbg("build_extraction_command: pipe command: " .. pipe_cmd)
+			return cmd
+		end
+		ya.dbg("build_extraction_command: compression tool or tar not available for pipe extraction")
 		return nil
 	end
 
-	local ext = get_file_extension(archive_path)
-	for pattern, tools in pairs(format_config.single_file_tools) do
-		if ext:match(pattern) then
-			local tool = find_available_tool(tools)
-			if tool then
-				return { tool, "-dc", archive_path }
-			end
-		end
-	end
-
-	return nil
-end
-
-local function build_extraction_command(archive_path, output_dir)
-	local format_name, format_config = find_archive_format(archive_path, EXTRACTION_FORMATS)
-
 	if not format_config then
-		-- Try fallback extraction
-		local fallback_tools = { "7z", "7za", "unzip" }
-		local tool = find_available_tool(fallback_tools)
-		if tool then
-			local cmd = { tool, "x", archive_path }
-			if output_dir then
-				if tool == "unzip" then
-					table.insert(cmd, "-d")
-					table.insert(cmd, output_dir)
-				else
-					table.insert(cmd, "-o" .. output_dir)
-				end
-			end
-			return cmd
-		end
+		ya.dbg("build_extraction_command: no format config found")
 		return nil
 	end
 
 	-- Handle ambiguous compressed files
 	if format_config.check_tar then
+		ya.dbg("build_extraction_command: checking if compressed tar")
 		if is_compressed_tar_archive(archive_path) then
+			ya.dbg("build_extraction_command: treating as compressed tar")
 			-- Treat as compressed tar
 			if is_command_available("tar") then
 				local cmd = { "tar", "-xf", archive_path }
@@ -443,88 +521,76 @@ local function build_extraction_command(archive_path, output_dir)
 					table.insert(cmd, "-C")
 					table.insert(cmd, output_dir)
 				end
+				ya.dbg("build_extraction_command: compressed tar command: " .. table.concat(cmd, " "))
 				return cmd
 			end
 		else
-			-- Treat as single-file compression
-			return build_single_file_decompression_command(archive_path)
+			ya.dbg("build_extraction_command: treating as single-file compression")
+			-- Treat as single-file compression - use standard extraction approach
+			local tool, flags = find_available_tool_group(format_config.extraction)
+			if tool then
+				local cmd = { tool }
+				for _, arg in ipairs(flags or {}) do
+					table.insert(cmd, arg)
+				end
+				table.insert(cmd, archive_path)
+				ya.dbg("build_extraction_command: single-file decompression command: " .. table.concat(cmd, " "))
+				return cmd
+			end
 		end
+		ya.dbg("build_extraction_command: ambiguous file handling failed")
 		return nil
 	end
 
-	-- Handle RAR special case
-	if format_name == "rar" then
-		local tool = find_available_tool(format_config.tools)
-		if tool then
-			local cmd = { tool }
-			for _, arg in ipairs(format_config.args) do
-				table.insert(cmd, arg)
-			end
-			table.insert(cmd, archive_path)
-			if output_dir then
-				table.insert(cmd, output_dir)
-			end
-			return cmd
+	-- Standard extraction with unified approach
+	ya.dbg("build_extraction_command: using format " .. (format_name or "unknown"))
+
+	local tool, flags, output_flag = find_available_tool_group(format_config.extraction)
+
+	-- Try fallback format if primary tool not available
+	if not tool and format_config.fallback and FORMATS[format_config.fallback] then
+		ya.dbg("build_extraction_command: trying fallback format " .. format_config.fallback)
+		local fallback_config = FORMATS[format_config.fallback]
+		tool, flags, output_flag = find_available_tool_group(fallback_config.extraction)
+	end
+
+	if not tool then
+		ya.dbg("build_extraction_command: no extraction tool available")
+		return nil
+	end
+
+	ya.dbg("build_extraction_command: using tool " .. tool)
+	local cmd = { tool }
+	for _, arg in ipairs(flags or {}) do
+		table.insert(cmd, arg)
+	end
+	table.insert(cmd, archive_path)
+
+	if output_dir and output_flag then
+		if output_flag == "-o" then
+			table.insert(cmd, "-o" .. output_dir)
+		elseif output_flag == "--output=" then
+			table.insert(cmd, "--output=" .. output_dir)
+		elseif output_flag == "" then
+			table.insert(cmd, output_dir)
+		else
+			table.insert(cmd, output_flag)
+			table.insert(cmd, output_dir)
 		end
 	end
 
-	-- Standard extraction
-	local tool = format_config.command or find_available_tool(format_config.tools)
-	if tool and is_command_available(tool) then
-		local cmd = { tool }
-		if format_config.args then
-			for _, arg in ipairs(format_config.args) do
-				table.insert(cmd, arg)
-			end
-		end
-		table.insert(cmd, archive_path)
-
-		if output_dir and format_config.output_flag then
-			if format_config.output_flag == "-o" then
-				table.insert(cmd, "-o" .. output_dir)
-			elseif format_config.output_flag == "--output=" then
-				table.insert(cmd, "--output=" .. output_dir)
-			else
-				table.insert(cmd, format_config.output_flag)
-				table.insert(cmd, output_dir)
-			end
-		end
-
-		return cmd
-	end
-
-	-- Try fallback
-	if format_config.fallback then
-		local fallback = format_config.fallback
-		if is_command_available(fallback.tool) then
-			local cmd = { fallback.tool }
-			for _, arg in ipairs(fallback.args) do
-				table.insert(cmd, arg)
-			end
-			table.insert(cmd, archive_path)
-
-			if output_dir and fallback.output_flag then
-				if fallback.output_flag == "-o" then
-					table.insert(cmd, "-o" .. output_dir)
-				else
-					table.insert(cmd, fallback.output_flag)
-					table.insert(cmd, output_dir)
-				end
-			end
-
-			return cmd
-		end
-	end
-
-	return nil
+	ya.dbg("build_extraction_command: final command: " .. table.concat(cmd, " "))
+	return cmd
 end
 
 -- Core operations
 local function execute_command_safely(cmd)
 	if not cmd or #cmd == 0 then
+		ya.dbg("execute_command_safely: no command to execute")
 		return false, "No command to execute"
 	end
 
+	ya.dbg("execute_command_safely: executing: " .. table.concat(cmd, " "))
 	local args = {}
 	for i = 2, #cmd do
 		args[#args + 1] = cmd[i]
@@ -533,6 +599,10 @@ local function execute_command_safely(cmd)
 	local output, err = Command(cmd[1]):arg(args):output()
 
 	if output and output.status.success then
+		ya.dbg("execute_command_safely: command succeeded")
+		if output.stdout and output.stdout ~= "" then
+			ya.dbg("execute_command_safely: stdout: " .. output.stdout)
+		end
 		return true, nil
 	else
 		local error_msg = "Unknown error"
@@ -541,6 +611,7 @@ local function execute_command_safely(cmd)
 		elseif err then
 			error_msg = tostring(err)
 		end
+		ya.dbg("execute_command_safely: command failed: " .. error_msg)
 		return false, error_msg
 	end
 end
@@ -560,8 +631,10 @@ local function validate_archive_name(archive_name)
 end
 
 local function compress_selected_files(archive_name, files)
+	ya.dbg("compress_selected_files: starting compression of " .. archive_name)
 	local is_valid, error_msg = validate_files(files)
 	if not is_valid then
+		ya.dbg("compress_selected_files: file validation failed: " .. error_msg)
 		ya.notify({
 			title = "Archives",
 			content = error_msg,
@@ -573,6 +646,7 @@ local function compress_selected_files(archive_name, files)
 
 	is_valid, error_msg = validate_archive_name(archive_name)
 	if not is_valid then
+		ya.dbg("compress_selected_files: archive name validation failed: " .. error_msg)
 		ya.notify({
 			title = "Archives",
 			content = error_msg,
@@ -584,13 +658,16 @@ local function compress_selected_files(archive_name, files)
 
 	local current_dir = get_current_directory()
 	local relative_files = convert_to_relative_paths(files, current_dir)
+	ya.dbg("compress_selected_files: files: " .. table.concat(relative_files, ", "))
 
 	local cmd = build_compression_command(archive_name, relative_files)
 	if not cmd then
+		ya.dbg("compress_selected_files: trying fallback compression")
 		cmd = get_fallback_compression_command(archive_name, relative_files)
 	end
 
 	if not cmd then
+		ya.dbg("compress_selected_files: no compression command available")
 		ya.notify({
 			title = "Archives",
 			content = "No suitable compression tool found",
@@ -603,6 +680,7 @@ local function compress_selected_files(archive_name, files)
 	local success, err = execute_command_safely(cmd)
 
 	if success then
+		ya.dbg("compress_selected_files: compression successful")
 		ya.notify({
 			title = "Archives",
 			content = "Compressed successfully",
@@ -610,6 +688,7 @@ local function compress_selected_files(archive_name, files)
 		})
 		ya.manager_emit("refresh", {})
 	else
+		ya.dbg("compress_selected_files: compression failed: " .. err)
 		ya.notify({
 			title = "Archives",
 			content = "Compression failed: " .. err,
@@ -620,8 +699,10 @@ local function compress_selected_files(archive_name, files)
 end
 
 local function extract_selected_files(files, output_dir)
+	ya.dbg("extract_selected_files: starting extraction" .. (output_dir and (" to " .. output_dir) or ""))
 	local is_valid, error_msg = validate_files(files)
 	if not is_valid then
+		ya.dbg("extract_selected_files: file validation failed: " .. error_msg)
 		ya.notify({
 			title = "Archives",
 			content = error_msg,
@@ -632,8 +713,10 @@ local function extract_selected_files(files, output_dir)
 	end
 
 	for _, file in ipairs(files) do
+		ya.dbg("extract_selected_files: processing " .. file)
 		local cmd = build_extraction_command(file, output_dir)
 		if not cmd then
+			ya.dbg("extract_selected_files: no extraction command for " .. file)
 			ya.notify({
 				title = "Archives",
 				content = "Unsupported archive format: " .. file:match("[^/]+$"),
@@ -646,12 +729,14 @@ local function extract_selected_files(files, output_dir)
 		local success, err = execute_command_safely(cmd)
 
 		if success then
+			ya.dbg("extract_selected_files: extraction successful for " .. file)
 			ya.notify({
 				title = "Archives",
 				content = "Extracted successfully",
 				timeout = 5,
 			})
 		else
+			ya.dbg("extract_selected_files: extraction failed for " .. file .. ": " .. err)
 			ya.notify({
 				title = "Archives",
 				content = "Extraction failed: " .. err,
