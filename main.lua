@@ -90,9 +90,9 @@ local FORMATS = {
 	},
 	tar = {
 		patterns = { "%.tar$" },
-		fallback = "seven_zip",
 		compression = {
 			{ tools = { "tar" }, flags = { "-cf" } },
+			{ tools = { "7z" }, flags = { "a" } },
 		},
 		extraction = {
 			{ tools = { "tar" }, flags = { "-xf" } },
@@ -192,7 +192,6 @@ local FORMATS = {
 	-- Standard archive formats
 	seven_zip = {
 		patterns = { "%.7z$" },
-		fallback = "zip",
 		compression = {
 			{ tools = { "7z" }, flags = { "a" } },
 		},
@@ -202,12 +201,12 @@ local FORMATS = {
 	},
 	rar = {
 		patterns = { "%.rar$" },
-		fallback = "seven_zip",
 		compression = {
 			{ tools = { "rar" }, flags = { "a", "-r" } },
 		},
 		extraction = {
 			{ tools = { "rar", "unrar" }, flags = { "x" } },
+			{ tools = { "7z" }, flags = { "x" }, output_flag = "-o" },
 		},
 	},
 	zip = {
@@ -233,7 +232,7 @@ local FORMATS = {
 	deb = {
 		patterns = { "%.deb$" },
 		extraction = {
-			{ tools = { "ar" }, flags = { "xv" }, output_flag = "--output=" },
+			{ tools = { "ar" }, flags = { "-x" }, output_flag = "--output=" },
 		},
 	},
 }
@@ -299,10 +298,25 @@ end
 
 local function find_archive_format(filename, format_table)
 	ya.dbg("find_archive_format: checking " .. filename)
+
+	-- Create sorted list by pattern specificity (longest patterns first)
+	local sorted_formats = {}
 	for format_name, config in pairs(format_table) do
-		if match_format_patterns(filename, config.patterns) then
-			ya.dbg("find_archive_format: matched " .. format_name)
-			return format_name, config
+		local max_len = 0
+		for _, pattern in ipairs(config.patterns) do
+			max_len = math.max(max_len, #pattern)
+		end
+		table.insert(sorted_formats, { name = format_name, config = config, len = max_len })
+	end
+	table.sort(sorted_formats, function(a, b)
+		return a.len > b.len
+	end)
+
+	-- Check formats in order of specificity
+	for _, entry in ipairs(sorted_formats) do
+		if match_format_patterns(filename, entry.config.patterns) then
+			ya.dbg("find_archive_format: matched " .. entry.name)
+			return entry.name, entry.config
 		end
 	end
 	ya.dbg("find_archive_format: no format matched")
@@ -344,7 +358,7 @@ local function build_tar_command_with_compression(compression_tool, flags, archi
 	if not is_command_available("tar") then
 		return nil
 	end
-	return { "tar", flags, archive_name, "--use-compress-program", compression_tool, unpack(files) }
+	return { "tar", unpack(flags), archive_name, "--use-compress-program", compression_tool, unpack(files) }
 end
 
 local function build_single_file_compression_command(compression_tool, flags, archive_name, files)
@@ -399,30 +413,11 @@ local function build_compression_command(archive_name, files)
 		ya.dbg("build_compression_command: no format config found")
 		return nil
 	end
-
 	ya.dbg("build_compression_command: using format " .. (format_name or "unknown"))
 
 	-- Try to find available compression tools
 	local tool, flags, _ = find_available_tool_group(format_config.compression)
 	if not tool then
-		-- Try fallback format if available
-		if format_config.fallback and FORMATS[format_config.fallback] then
-			ya.dbg("build_compression_command: trying fallback format " .. format_config.fallback)
-			local fallback_config = FORMATS[format_config.fallback]
-			local fallback_tool, fallback_flags = find_available_tool_group(fallback_config.compression)
-			if fallback_tool then
-				-- Use fallback format logic
-				local cmd = { fallback_tool }
-				for _, arg in ipairs(fallback_flags or {}) do
-					table.insert(cmd, arg)
-				end
-				table.insert(cmd, archive_name)
-				for _, file in ipairs(files) do
-					table.insert(cmd, file)
-				end
-				return cmd
-			end
-		end
 		ya.dbg("build_compression_command: no compression tools available")
 		return nil
 	end
@@ -445,33 +440,16 @@ local function build_compression_command(archive_name, files)
 
 	-- Standard archive formats
 	ya.dbg("build_compression_command: standard archive format")
-	local cmd = { tool }
-	for _, arg in ipairs(flags or {}) do
-		table.insert(cmd, arg)
-	end
-	table.insert(cmd, archive_name)
-	for _, file in ipairs(files) do
-		table.insert(cmd, file)
-	end
+	local cmd = { tool, unpack(flags or {}), archive_name, unpack(files) }
 	ya.dbg("build_compression_command: built command: " .. table.concat(cmd, " "))
 	return cmd
 end
 
 local function get_fallback_compression_command(archive_name, files)
 	local zip_config = FORMATS.zip
-	if zip_config and zip_config.compression then
-		local tool, flags = find_available_tool_group(zip_config.compression)
-		if tool then
-			local cmd = { tool }
-			for _, arg in ipairs(flags or {}) do
-				table.insert(cmd, arg)
-			end
-			table.insert(cmd, archive_name .. ".zip")
-			for _, file in ipairs(files) do
-				table.insert(cmd, file)
-			end
-			return cmd
-		end
+	local tool, flags = find_available_tool_group(zip_config.compression)
+	if tool then
+		return { tool, unpack(flags or {}), archive_name, unpack(files) }
 	end
 
 	return nil
@@ -529,11 +507,7 @@ local function build_extraction_command(archive_path, output_dir)
 			-- Treat as single-file compression - use standard extraction approach
 			local tool, flags = find_available_tool_group(format_config.extraction)
 			if tool then
-				local cmd = { tool }
-				for _, arg in ipairs(flags or {}) do
-					table.insert(cmd, arg)
-				end
-				table.insert(cmd, archive_path)
+				local cmd = { tool, unpack(flags or {}), archive_path }
 				ya.dbg("build_extraction_command: single-file decompression command: " .. table.concat(cmd, " "))
 				return cmd
 			end
@@ -546,26 +520,13 @@ local function build_extraction_command(archive_path, output_dir)
 	ya.dbg("build_extraction_command: using format " .. (format_name or "unknown"))
 
 	local tool, flags, output_flag = find_available_tool_group(format_config.extraction)
-
-	-- Try fallback format if primary tool not available
-	if not tool and format_config.fallback and FORMATS[format_config.fallback] then
-		ya.dbg("build_extraction_command: trying fallback format " .. format_config.fallback)
-		local fallback_config = FORMATS[format_config.fallback]
-		tool, flags, output_flag = find_available_tool_group(fallback_config.extraction)
-	end
-
 	if not tool then
 		ya.dbg("build_extraction_command: no extraction tool available")
 		return nil
 	end
 
 	ya.dbg("build_extraction_command: using tool " .. tool)
-	local cmd = { tool }
-	for _, arg in ipairs(flags or {}) do
-		table.insert(cmd, arg)
-	end
-	table.insert(cmd, archive_path)
-
+	local cmd = { tool, unpack(flags or {}), archive_path }
 	if output_dir and output_flag then
 		if output_flag == "-o" then
 			table.insert(cmd, "-o" .. output_dir)
