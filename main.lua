@@ -337,6 +337,18 @@ local function convert_to_relative_paths(files, base_dir)
 	return relative_files
 end
 
+-- Command array builder that filters out nil values
+local function build_cmd_array(...)
+	local result = {}
+	for i = 1, select("#", ...) do
+		local v = select(i, ...)
+		if v ~= nil then
+			result[#result + 1] = v
+		end
+	end
+	return result
+end
+
 -- Yazi context access functions
 local get_selected_files = ya.sync(function()
 	local paths = {}
@@ -358,7 +370,14 @@ local function build_tar_command_with_compression(compression_tool, flags, archi
 	if not is_command_available("tar") then
 		return nil
 	end
-	return { "tar", unpack(flags), archive_name, "--use-compress-program", compression_tool, unpack(files) }
+	return build_cmd_array(
+		"tar",
+		unpack(flags),
+		archive_name,
+		"--use-compress-program",
+		compression_tool,
+		unpack(files)
+	)
 end
 
 local function build_single_file_compression_command(compression_tool, flags, archive_name, files)
@@ -440,7 +459,7 @@ local function build_compression_command(archive_name, files)
 
 	-- Standard archive formats
 	ya.dbg("build_compression_command: standard archive format")
-	local cmd = { tool, unpack(flags or {}), archive_name, unpack(files) }
+	local cmd = build_cmd_array(tool, unpack(flags or {}), archive_name, unpack(files))
 	ya.dbg("build_compression_command: built command: " .. table.concat(cmd, " "))
 	return cmd
 end
@@ -449,7 +468,7 @@ local function get_fallback_compression_command(archive_name, files)
 	local zip_config = FORMATS.zip
 	local tool, flags = find_available_tool_group(zip_config.compression)
 	if tool then
-		return { tool, unpack(flags or {}), archive_name, unpack(files) }
+		return build_cmd_array(tool, unpack(flags or {}), archive_name, unpack(files))
 	end
 
 	return nil
@@ -494,7 +513,7 @@ local function build_extraction_command(archive_path, output_dir)
 			ya.dbg("build_extraction_command: treating as compressed tar")
 			-- Treat as compressed tar
 			if is_command_available("tar") then
-				local cmd = { "tar", "-xf", archive_path }
+				local cmd = build_cmd_array("tar", "-xf", archive_path)
 				if output_dir then
 					table.insert(cmd, "-C")
 					table.insert(cmd, output_dir)
@@ -507,7 +526,7 @@ local function build_extraction_command(archive_path, output_dir)
 			-- Treat as single-file compression - use standard extraction approach
 			local tool, flags = find_available_tool_group(format_config.extraction)
 			if tool then
-				local cmd = { tool, unpack(flags or {}), archive_path }
+				local cmd = build_cmd_array(tool, unpack(flags or {}), archive_path)
 				ya.dbg("build_extraction_command: single-file decompression command: " .. table.concat(cmd, " "))
 				return cmd
 			end
@@ -526,7 +545,7 @@ local function build_extraction_command(archive_path, output_dir)
 	end
 
 	ya.dbg("build_extraction_command: using tool " .. tool)
-	local cmd = { tool, unpack(flags or {}), archive_path }
+	local cmd = build_cmd_array(tool, unpack(flags or {}), archive_path)
 	if output_dir and output_flag then
 		if output_flag == "-o" then
 			table.insert(cmd, "-o" .. output_dir)
@@ -647,7 +666,7 @@ local function compress_selected_files(archive_name, files)
 			content = "Compressed successfully",
 			timeout = 4,
 		})
-		ya.manager_emit("refresh", {})
+		ya.mgr_emit("refresh", {})
 	else
 		ya.dbg("compress_selected_files: compression failed: " .. err)
 		ya.notify({
@@ -708,7 +727,7 @@ local function extract_selected_files(files, output_dir)
 
 		::continue::
 	end
-	ya.manager_emit("refresh", {})
+	ya.mgr_emit("refresh", {})
 end
 
 local function show_usage()
@@ -743,7 +762,7 @@ local function handle_compress_command(args)
 
 		local value, event = ya.input({
 			title = "Compress to archive (in " .. current_dir_name .. "):",
-			position = { "center", w = 50 },
+			pos = { "center", w = 50 },
 		})
 
 		if event == 1 and value and value ~= "" then
